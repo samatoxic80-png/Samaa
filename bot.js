@@ -34,8 +34,13 @@ async function startBot() {
 
         const type = getContentType(normalizedMsg); 
 
-        if (type === 'imageMessage') {
-            console.log("📸 وصلت صورة! جاري تنزيلها...");
+        // هنا ضفنا دعم الفيديو (videoMessage)
+        if (type === 'imageMessage' || type === 'videoMessage') {
+            
+            const isVideo = type === 'videoMessage';
+            const fileType = isVideo ? 'فيديو 🎥' : 'صورة 📸';
+            console.log(`وصل ${fileType}! جاري تنزيله...`);
+
             try {
                 const buffer = await downloadMediaMessage(
                     msg, 
@@ -44,11 +49,14 @@ async function startBot() {
                     { logger: P({ level: 'silent' }), reuploadRequest: sock.updateMediaMessage }
                 );
 
-                const filename = `image_${Date.now()}.jpg`;
+                // لو فيديو يبقى الامتداد mp4 ولو صورة jpg
+                const ext = isVideo ? 'mp4' : 'jpg';
+                const filename = `media_${Date.now()}.${ext}`;
+                
                 fs.writeFileSync(filename, buffer);
-                console.log(`✅ تم حفظ الصورة: ${filename}`);
+                console.log(`✅ تم حفظ الملف: ${filename}`);
 
-                await sock.sendMessage(msg.key.remoteJid, { text: 'تم استلام الصورة بنجاح! 📥' });
+                await sock.sendMessage(msg.key.remoteJid, { text: `تم استلام ${fileType} بنجاح! 📥` });
             } catch (error) {
                 console.error("❌ حصل خطأ:", error);
             }

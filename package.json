@@ -1,15 +1,13 @@
 {
-  "name": "kilo-bot",
+  "name": "whatsapp-viewonce-bot",
   "version": "1.0.0",
-  "description": "WhatsApp Bot by Kilo",
-  "main": "bot.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.6.0",
-    "@hapi/boom": "^10.0.1",
-    "pino": "^8.19.0",
-    "qrcode-terminal": "^0.12.0"
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0",
+    "express": "^4.18.2"
   }
 }

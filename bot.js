@@ -1,67 +1,49 @@
-const { default: makeWASocket, useMultiFileAuthState, normalizeMessageContent, getContentType, downloadMediaMessage } = require('@whiskeysockets/baileys');
-const P = require('pino');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const express = require('express');
 
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    
-    const sock = makeWASocket({
-        auth: state,
-        logger: P({ level: 'silent' }),
-        printQRInTerminal: false 
-    });
+// سيرفر وهمي عشان منصة Render تفتكر إن الموقع شغال ومتقفلوش
+const app = express();
+const port = process.env.PORT || 3000;
+app.get('/', (req, res) => res.send('Bot is running!'));
+app.listen(port, () => console.log(`Server listening on port ${port}`));
 
-    sock.ev.on('creds.update', saveCreds);
+// إعداد البوت
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
+});
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, qr } = update;
-        if (qr) {
-            qrcode.generate(qr, { small: true }); 
-            console.log("👆 امسح الكود اللي فوق من واتساب");
-        }
-        if (connection === 'open') {
-            console.log('✅ البوت اتصل بنجاح!');
-        }
-    });
+// كود الـ QR
+client.on('qr', (qr) => {
+    console.log('\n=============================================');
+    console.log('امسح الكود ده من واتساب (الأجهزة المرتبطة):');
+    qrcode.generate(qr, { small: true });
+    console.log('=============================================\n');
+});
 
-    sock.ev.on('messages.upsert', async (m) => {
-        const msg = m.messages[0];
-        if (!msg.message) return; 
+client.on('ready', () => {
+    console.log('✅ البوت شغال وجاهز لسحب الصور!');
+});
 
-        const normalizedMsg = normalizeMessageContent(msg.message);
-        if (!normalizedMsg) return;
-
-        const type = getContentType(normalizedMsg); 
-
-        if (type === 'imageMessage' || type === 'videoMessage') {
+// استقبال الرسائل
+client.on('message', async message => {
+    if (message.hasMedia) {
+        try {
+            console.log('جاري تحميل الميديا...');
+            const media = await message.downloadMedia();
             
-            const isVideo = type === 'videoMessage';
-            console.log(`وصل ${isVideo ? 'فيديو' : 'صورة'}! جاري تنزيله...`);
-
-            try {
-                const buffer = await downloadMediaMessage(
-                    msg, 
-                    'buffer',
-                    {},
-                    { logger: P({ level: 'silent' }), reuploadRequest: sock.updateMediaMessage }
-                );
-
-                // إرسال الميديا لرقم البوت نفسه (رسائلك المحفوظة)
-                const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                
-                if (isVideo) {
-                    await sock.sendMessage(myJid, { video: buffer, caption: '🎥 فيديو تم التقاطه!' });
-                } else {
-                    await sock.sendMessage(myJid, { image: buffer, caption: '📸 صورة تم التقاطها!' });
-                }
-
-                console.log(`✅ تم إرسال الملف لرسائلك المحفوظة!`);
-
-            } catch (error) {
-                console.error("❌ حصل خطأ:", error);
+            if (media) {
+                console.log('✅ تم سحب صورة/فيديو (تشاف مرة واحدة أو عادي)!');
+                // الرد على المرسل (اختياري، تقدر تمسح السطر ده)
+                // message.reply('تم استلام الملف.'); 
             }
+        } catch (error) {
+            console.error('حدث خطأ:', error);
         }
-    });
-}
+    }
+});
 
-startBot(); 
+client.initialize();
